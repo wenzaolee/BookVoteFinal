@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>我最喜欢的中国古典书籍评选</title>
+<link href="lib/bootstrap-4.0.0-dist/css/bootstrap.min.css"
+	rel="stylesheet">
+<link rel="stylesheet" href="lib/jquery-ui-1.12.1.custom/jquery-ui.css">
+<script src=lib/jquery-3.3.1.min.js></script>
+<script src="lib/jquery-ui-1.12.1.custom/jquery-ui.js"></script>
+<script src=lib/bootstrap-4.0.0-dist/js/bootstrap.min.js></script>
+<script src=lib/nebulas.js></script>
+<script src=lib/nebPay.js></script>
+<script>
+
+"use strict";
+
+var dappAddress = "n1veksEUExhB7Xt6zhAWThK6oMjd36nfdzK"; //主网, hash: 6a8d40585ed6d2b8393e9aa20ed93b644a39da4ba6f346a1f880a96c8b1b35b8
+var nebulas = require("nebulas"),
+Account = nebulas.Account,
+neb = new nebulas.Neb();
+neb.setRequest(new nebulas.HttpRequest("https://mainnet.nebulas.io"));
+
+var NebPay = require("nebpay");    
+var nebPay = new NebPay();
+
+var pageSize = 10;
+var totalCount = 0;
+var totalPage = 0;
+var pageIndex = 1;
+$(document).ready(function(){ 
+    $("#loading").hide();
+	pageIndex = 1;
+	showMainpage();
+}); 
+
+function showMainpage(){
+	$("#main").show();
+	$("#addBook").hide();
+	$("#viewBook").hide();
+	$("#modifyBook").hide();
+	showTable(pageIndex);
+}
+
+	
+
+function showTable(toPageIndex){
+	 var from = Account.NewAccount().getAddressString();
+     var value = "0";
+     var nonce = "0"
+     var gas_price = "1000000"
+     var gas_limit = "2000000"
+     var callFunction = "getList";
+     var callArgs = "[" +((toPageIndex-1)*pageSize + 1)+","+pageSize+ "]"; 
+     var contract = {
+         "function": callFunction,
+         "args": callArgs
+     }
+     $("#loading").show();
+     neb.api.call(from,dappAddress,value,nonce,gas_price,gas_limit,contract).then(function (resp) {
+    	 $("#loading").hide();
+    	 var result = resp.result     
+         console.log("return of getList: " + JSON.stringify(result))
+         if (result != 'null'){
+        	 var arrayResult = JSON.parse(JSON.parse(result));
+        	 pageIndex = toPageIndex;
+        	 var str="";
+        	 for(var i= 0;i< arrayResult.length ;i++){
+        		 var item= arrayResult[i];
+        		 totalCount = item.totalBookCount;
+        		 str += "<tr>";
+        		 str += "<td>" + ((pageIndex-1)*pageSize + i+1) + "</td>";
+        		 str += "<td> <a href=\"javascript:viewBook('" + item.name + "')\" >" + item.name + "</a></td>";
+        		 str += "<td>" + item.author + "</td>";
+        		 str += "<td>" + item.dynasty + "</td>";
+        		 str += "<td>" + item.voteCount + "</td>";
+        		 str += "<td><div class='btn-group btn-group-sm'>";
+        		 str += "<button class='btn  btn-dark' onclick=\"viewBook('" + item.name + "')\"> 查看 </button>";
+        		 str += "&nbsp;&nbsp;&nbsp;&nbsp;<button class='btn  btn-dark' onclick=\"toModifyBook('" + item.name + "')\"> 修改 </button>";
+        		 str += "&nbsp;&nbsp;&nbsp;&nbsp;<button class='btn  btn-dark'  onclick=\"voteBook('" + item.name + "')\"> 投票 </button>";
+        		 str += "</div></td>";
+        		 str += "</tr>"
+        	 }
+        	 totalPage = Math.ceil(totalCount/pageSize);
+        	 $("#tbody").html(str); 
+        	 $("#totalCount").text(""+totalCount);
+        	 $("#totalPage").text(""+totalPage);
+        	 $("#pageIndex").text(""+pageIndex);
+         }
+     }).catch(function (err) {
+         console.log("error:" + err.message)
+         alert("发生异常:" + err.message);
+     })
+	
+}
+
+function viewBook(name){
+	var from = Account.NewAccount().getAddressString();
+    var value = "0";
+    var nonce = "0"
+    var gas_price = "1000000"
+    var gas_limit = "2000000"
+    var callFunction = "getBook";
+    var callArgs = "[\"" +name+ "\"]"; 
+    var contract = {
+        "function": callFunction,
+        "args": callArgs
+    }
+    $("#loading").show();
+    neb.api.call(from,dappAddress,value,nonce,gas_price,gas_limit,contract).then(function (resp) {
+         $("#loading").hide();
+      	 var result = resp.result     
+           console.log("return of getBook: " + JSON.stringify(result))
+           if (result=='null'){
+           	  //alert("书籍不存在!");
+        	   showMainpage();
+           }
+           else{
+        	   result = JSON.parse(JSON.parse(result));
+        	    $("#main").hide();
+        		$("#addBook").hide();
+        		$("#viewBook").show();
+        		$("#modifyBook").hide();
+        		$("#viewName").text(result.name);
+        		$("#viewAuthor").text(result.author);
+        		$("#viewVoteCount").text(result.voteCount);
+        		$("#viewDynasty").text(result.dynasty);
+        		$("#viewIntroduction").val(result.introduction);
+           }
+       });
+}
+
+function toModifyBook(name){
+	var from = Account.NewAccount().getAddressString();
+    var value = "0";
+    var nonce = "0"
+    var gas_price = "1000000"
+    var gas_limit = "2000000"
+    var callFunction = "getBook";
+    var callArgs = "[\"" +name+ "\"]"; 
+    var contract = {
+        "function": callFunction,
+        "args": callArgs
+    }
+    neb.api.call(from,dappAddress,value,nonce,gas_price,gas_limit,contract).then(function (resp) {
+      	  var result = resp.result     
+           console.log("return of getBook: " + JSON.stringify(result))
+           if (result=='null'){
+           	  alert("书籍不存在!")
+           }
+           else{
+        	   result = JSON.parse(JSON.parse(result));
+        		$("#main").hide();
+        		$("#addBook").hide();
+        		$("#viewBook").hide();
+        		$("#modifyBook").show();
+        		$("#modifyName").text(result.name);
+        		$("#modifyAuthor").val(result.author);
+        		$("#modifyDynasty").val(result.dynasty);
+        		$("#modifyIntroduction").val(result.introduction);
+           }
+       });
+}
+
+function toAddNewBook(){	
+	$("#main").hide();
+	$("#addBook").show();
+	$("#viewBook").hide();
+	$("#modifyBook").hide();
+	$("#newName").val("");
+	$("#newAuthor").val("");
+	$("#newDynasty").val("");
+	$("#newIntroduction").val("");
+}
+
+function toRefreshBook4View(){
+	var name=$.trim($("#viewName").text());
+	viewBook( name);
+}
+
+function toVoteBook4View(){
+	var name=$.trim($("#viewName").text());
+	voteBook( name);
+}
+
+function toModifyBook4View(){
+	var name=$.trim($("#viewName").text());
+	toModifyBook( name);
+}
+
+var intervalQuery;
+var serialNumber;
+var queryCount = 0;
+
+function voteBook( bookName){
+	if(""==bookName){
+		alert("书名不能为空!");
+		return;
+	}  
+    var value = "0";
+    var callFunction = "voteBook"
+    var callArgs = "[\""+bookName+"\"]"; 
+
+    serialNumber = nebPay.call(dappAddress, value, callFunction, callArgs, {    
+        listener: cb4VoteBook,
+        callback: NebPay.config.mainnetUrl
+    });
+    if(intervalQuery!=null){
+        clearInterval(intervalQuery);  
+    }
+    intervalQuery = setInterval(function () {
+        funcIntervalQuery(null);
+    }, 11000);
+    queryCount = 0;
+    $("#loading").show();
+}
+
+
+function cb4VoteBook(resp) {
+    console.log("response of VoteBook: " + JSON.stringify(resp))
+}
+
+function addNewBook(){
+	var name=$.trim($("#newName").val());
+	var author=$.trim($("#newAuthor").val());
+	var dynasty=$.trim($("#newDynasty").val());
+	var introduction=$.trim($("#newIntroduction").val());
+
+	if(""==name){
+		alert("书名不能为空!");
+		return;
+	}
+	if(""==author){
+		alert("作者不能为空!");
+		return;
+	}
+	if(""==dynasty){
+		alert("朝代不能为空!");
+		return;
+	}
+	if(""==introduction){
+		alert("简介不能为空!");
+		return;
+	}
+	if (name.length > 64) {
+		alert("书名长度不能超过100字!");
+		return;	
+	}
+	if (author.length > 64) {
+		alert("作者长度不能超过100字!");
+		return;	
+	}
+	if (dynasty.length > 64) {
+		alert("朝代长度不能超过100字!");
+		return;	
+	}
+	
+	if(introduction.length>150){
+		alert("简介长度不能超过150字!");
+		return;
+	}
+	if(!/^[\u4e00-\u9fa5a-zA-Z0-9]+$/.test(name)){
+		alert("书名只能由汉字,字母, 数字组成!");
+		return;
+	}
+    var from = Account.NewAccount().getAddressString();
+    var value = "0";
+    var nonce = "0"
+    var gas_price = "1000000"
+    var gas_limit = "2000000"
+    var callFunction = "getBook";
+    var callArgs = "[\"" +name+ "\"]"; 
+    var contract = {
+        "function": callFunction,
+        "args": callArgs
+    }
+
+    neb.api.call(from,dappAddress,value,nonce,gas_price,gas_limit,contract).then(function (resp) {
+   	 var result = resp.result     
+        console.log("return of getList: " + JSON.stringify(result))
+        if (result!='null'){
+        	alert("书籍已经存在!")
+        }
+        else{
+        	value = "0";
+        	callFunction = "addBook"
+        	callArgs = "["+"\""+name+"\","+"\""+author+"\","+"\""+dynasty+"\","+"\""+introduction+"\""+ "]"; 
+        	serialNumber = nebPay.call(dappAddress, value, callFunction, callArgs, {    
+                listener: cb4NebPayCall, 
+                callback: NebPay.config.mainnetUrl
+            });
+            if(intervalQuery!=null){
+                clearInterval(intervalQuery);  
+            }
+            intervalQuery = setInterval(function () {
+                funcIntervalQuery(name);
+            }, 11000);
+            queryCount = 0;
+            $("#loading").show();
+        }
+    });
+}
+
+function modifyBook(){
+	var name=$.trim($("#modifyName").text());
+	var author=$.trim($("#modifyAuthor").val());
+	var dynasty=$.trim($("#modifyDynasty").val());
+	var introduction=$.trim($("#modifyIntroduction").val());
+
+	if(""==name){
+		alert("书名不能为空!");
+		return;
+	}
+	if(""==author){
+		alert("作者不能为空!");
+		return;
+	}
+	if(""==dynasty){
+		alert("朝代不能为空!");
+		return;
+	}
+	if(""==introduction){
+		alert("简介不能为空!");
+		return;
+	}
+	if (name.length > 64) {
+		alert("书名长度不能超过100字!");
+		return;	
+	}
+	if (author.length > 64) {
+		alert("作者长度不能超过100字!");
+		return;	
+	}
+	if (dynasty.length > 64) {
+		alert("朝代长度不能超过100字!");
+		return;	
+	}
+	if(introduction.length>150){
+		alert("简介长度不能超过150字!");
+		return;
+	}
+	if(!/^[\u4e00-\u9fa5a-zA-Z0-9]+$/.test(name)){
+		alert("书名只能由汉字,字母, 数字组成!");
+		return;
+	}
+    var from = Account.NewAccount().getAddressString();
+    var value = "0";
+	var callFunction = "modifyBook"
+    var	callArgs = "["+"\""+name+"\","+"\""+author+"\","+"\""+dynasty+"\","+"\""+introduction+"\""+ "]"; 
+    	serialNumber = nebPay.call(dappAddress, value, callFunction, callArgs, {    
+            listener: cb4NebPayCall, 
+            callback: NebPay.config.mainnetUrl
+        });
+        if(intervalQuery!=null){
+            clearInterval(intervalQuery);  
+        }
+        intervalQuery = setInterval(function () {
+            funcIntervalQuery(name);
+        }, 11000);
+        queryCount = 0;
+        $("#loading").show();
+}
+
+function cb4NebPayCall(resp) {
+    console.log("response of nebPay.call: " + JSON.stringify(resp))
+}
+
+
+function funcIntervalQuery(bookName) {
+    nebPay.queryPayInfo(serialNumber)   //search transaction result from server (result upload to server by app)
+        .then(function (resp) {
+            console.log("tx result: " + resp)   //resp is a JSON string
+            var respObject = JSON.parse(resp)
+            if(respObject.code === 0){  
+                $("#loading").hide();
+                alert("操作成功! 若页面未更新, 请稍后点击刷新按钮.");
+                if(bookName==null){
+                    showMainpage();
+                }
+                else{
+                	viewBook(bookName);
+                }
+                clearInterval(intervalQuery);  
+            } 
+            queryCount++;
+            if(queryCount>10){
+            	$("#loading").hide();
+            	clearInterval(intervalQuery);  
+            }
+        })
+        .catch(function (err) {
+            console.log(err);
+        });
+}
+
+function lastPage(){
+	if(pageIndex<=1){
+		return;
+	} 
+	showTable(pageIndex-1);
+}
+
+function nextPage(){
+	if(pageIndex>=totalPage){
+		return;
+	}
+	showTable(pageIndex+1);
+}
+
+
+function refreshTable(){
+	showTable(pageIndex);
+}
+</script>
+
+</head>
+<body>
+	<div class="container">
+
+		<br /> <br />
+		<h1 align="center">我最喜欢的中国古典书籍评选</h1>
+        <div align="center"  style="height:20px;">&nbsp;<img id="loading" src="js/loading.gif"/>&nbsp;</div>
+		<div id="main">
+			<br /> <br />
+			<div class="btn-group btn-group-sm">
+				<button onclick="refreshTable()" type="button" class="btn  btn-dark">刷新</button>
+				&nbsp;&nbsp;&nbsp;&nbsp;
+				<button onclick="toAddNewBook()" class="btn  btn-dark">添加书籍</button>
+			</div>
+			<br />
+			<table class="table table-striped">
+				<thead>
+					<tr>
+						<th>序号</th>
+						<th>书名</th>
+						<th>作者</th>
+						<th>朝代</th>
+						<th>投票数</th>
+						<th>操作</th>
+					</tr>
+				</thead>
+				<tbody id="tbody">
+				</tbody>
+			</table>
+			<p>
+				共<label id="totalCount">0</label>条记录 &nbsp;&nbsp;&nbsp;&nbsp;第<label
+					id="pageIndex">0</label>/<label id="totalPage">0</label>页
+				&nbsp;&nbsp;&nbsp;&nbsp;<a href="javascript:void(0)"
+					onclick="lastPage()">上一页</a> &nbsp;&nbsp;&nbsp;&nbsp;<a
+					href="javascript:void(0)" onclick="nextPage()">下一页</a>
+
+			</p>
+
+		</div>
+
+		<div id="viewBook">
+			<br /> <br />
+			<h5>书籍详情</h5>
+			<br /> 
+			<div class="form-horizontal" role="form">
+				<div class="form-group">
+					<label class="col-sm-1 control-label">书名:</label> <label
+						id="viewName"></label>
+				</div>
+				<div class="form-group">
+					<label class="col-sm-1 control-label">作者:</label> <label
+						id="viewAuthor"></label>
+				</div>
+				<div class="form-group">
+					<label class="col-sm-1 control-label">朝代: </label> <label
+						id="viewDynasty"></label>
+				</div>
+				<div class="form-group">
+					<label class="col-sm-1 control-label">投票数:</label> <label
+						id="viewVoteCount"></label>
+				</div>
+				<div class="form-group">
+					<label class="col-sm-1 control-label">简介:</label> <textarea cols="100" rows="3"
+						id="viewIntroduction" readonly="readonly" ></textarea>
+				</div>
+				<div class="form-group" align="center">
+					<div class="btn-group btn-group-sm">
+					    <button onclick="toRefreshBook4View()" type="button"
+							class="btn  btn-dark">刷新</button>
+						&nbsp;&nbsp;&nbsp;&nbsp;<button onclick="toModifyBook4View()" type="button"
+							class="btn  btn-dark">修改</button>
+						&nbsp;&nbsp;&nbsp;&nbsp;
+						<button onclick="toVoteBook4View()" type="button"
+							class="btn  btn-dark">投票</button>
+						&nbsp;&nbsp;&nbsp;&nbsp;
+						<button onclick="showMainpage()" class="btn  btn-dark">返回</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="addBook">
+			<br /> <br />
+			<h5>添加书籍</h5>
+			<br /> 
+			<div class="form-horizontal" role="form">
+				<div class="form-group">
+					<label class="col-sm-1 control-label">书名:</label><input
+						id="newName" value="" placeholder="书名只能由汉字, 数字, 字母组成" size="100" />
+				</div>
+				<div class="form-group">
+					<label class="col-sm-1 control-label">作者:</label><input
+						id="newAuthor" value="" placeholder="若作者不详, 填入不详" placeholder="" size="100" />
+				</div>
+				<div class="form-group">
+					<label class="col-sm-1 control-label">朝代:</label>
+					<select id="newDynasty">
+					   <option value="夏">夏</option>
+					   <option value="商">商</option>
+					   <option value="西周">西周</option>
+					   <option value="春秋">春秋</option>
+					   <option value="战国">战国</option>
+					   <option value="秦">秦</option>
+					   <option value="西汉">西汉</option>
+					   <option value="东汉">东汉</option>
+					   <option value="三国">三国</option>
+					   <option value="西晋">西晋</option>
+					   <option value="东晋">东晋</option>
+					   <option value="十六国">十六国</option>
+					   <option value="南朝">南朝</option>
+					   <option value="北朝">北朝</option>
+					   <option value="隋">隋</option>
+					   <option value="唐">唐</option>
+					   <option value="五代十国">五代十国</option>
+					   <option value="北宋">北宋</option>
+					   <option value="南宋">南宋</option>
+					   <option value="辽">辽</option>
+					   <option value="西夏">西夏</option>
+					   <option value="金">金</option>
+					   <option value="元">元</option>
+					   <option value="明">明</option>
+					   <option value="清">清</option>
+					   <option value="其他">其他</option>
+					   <option value="不详">不详</option>
+					</select>
+				</div>
+				<div class="form-group">
+					<label class="col-sm-1 control-label">简介:</label>
+					<textarea cols="100" rows="3" placeholder="150字以内" id="newIntroduction" ></textarea>
+				</div>
+				<div class="form-group" align="center">
+					<div class="btn-group btn-group-sm" >
+						<button onclick="addNewBook()" type="button" class="btn  btn-dark">确定</button>
+						&nbsp;&nbsp;&nbsp;&nbsp;
+						<button onclick="showMainpage()" class="btn  btn-dark">返回</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="modifyBook">
+			<br /> <br />
+			<h5>修改书籍</h5>
+			<br /> 
+			<form class="form-horizontal" role="form">
+				<div class="form-group">
+					<label class="col-sm-1 control-label" >书名:</label>
+ 						<label id="modifyName" ></label>
+ 				</div>
+				<div class="form-group">
+					<label class="col-sm-1 control-label">作者:</label>
+						<input id="modifyAuthor" value="" 
+							size="100" />
+				</div>
+
+				<div class="form-group">
+					<label class="col-sm-1 control-label">朝代:</label>
+				     <select id="modifyDynasty">
+					   <option value="夏">夏</option>
+					   <option value="商">商</option>
+					   <option value="西周">西周</option>
+					   <option value="春秋">春秋</option>
+					   <option value="战国">战国</option>
+					   <option value="秦">秦</option>
+					   <option value="西汉">西汉</option>
+					   <option value="东汉">东汉</option>
+					   <option value="三国">三国</option>
+					   <option value="西晋">西晋</option>
+					   <option value="东晋">东晋</option>
+					   <option value="十六国">十六国</option>
+					   <option value="南朝">南朝</option>
+					   <option value="北朝">北朝</option>
+					   <option value="隋">隋</option>
+					   <option value="唐">唐</option>
+					   <option value="五代十国">五代十国</option>
+					   <option value="北宋">北宋</option>
+					   <option value="南宋">南宋</option>
+					   <option value="辽">辽</option>
+					   <option value="西夏">西夏</option>
+					   <option value="金">金</option>
+					   <option value="元">元</option>
+					   <option value="明">明</option>
+					   <option value="清">清</option>
+					   <option value="其他">其他</option>
+					   <option value="不详">不详</option>
+					</select>
+				</div>
+				<div class="form-group">
+					<label class="col-sm-1 control-label">简介:</label>
+					<textarea cols="100" rows="3" placeholder="150字以内" id="modifyIntroduction" ></textarea>
+				</div>
+				<div class="form-group" align="center">
+					<div class="btn-group btn-group-sm">
+						<button onclick="modifyBook()" type="button" class="btn  btn-dark">确定</button>
+						&nbsp;&nbsp;&nbsp;&nbsp;
+						<button onclick="showMainpage()" class="btn  btn-dark">返回</button>
+					</div>
+				</div>
+			</form>
+		</div>
+
+	</div>
+
+</body>
+</html>
