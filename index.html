@@ -32,12 +32,28 @@ $(document).ready(function(){
     $("#loading").hide();
 	pageIndex = 1;
 	showMainpage();
+	ref = setInterval(function(){
+	    refreshPage();
+	},5000);
 }); 
 
+var isMainPage = false;
+var isViewBook = false;
+
+function refreshPage(){
+	if(isMainPage==true){
+		showMainpage()
+	}
+	else(isViewBook==true){
+		var name=$.trim($("#viewName").text());
+		viewBook( name);
+	}
+}
+
 function showMainpage(){
-	$("#main").show();
+	$("#main").show(); isMainPage = true;
 	$("#addBook").hide();
-	$("#viewBook").hide();
+	$("#viewBook").hide();  isViewBook = false;
 	$("#modifyBook").hide();
 	showTable(pageIndex);
 }
@@ -117,9 +133,9 @@ function viewBook(name){
            }
            else{
         	   result = JSON.parse(JSON.parse(result));
-        	    $("#main").hide();
+        	    $("#main").hide(); isMainPage = false;
         		$("#addBook").hide();
-        		$("#viewBook").show();
+        		$("#viewBook").show();  isViewBook = true;
         		$("#modifyBook").hide();
         		$("#viewName").text(result.name);
         		$("#viewAuthor").text(result.author);
@@ -150,9 +166,9 @@ function toModifyBook(name){
            }
            else{
         	   result = JSON.parse(JSON.parse(result));
-        		$("#main").hide();
+        		$("#main").hide(); isMainPage = false;
         		$("#addBook").hide();
-        		$("#viewBook").hide();
+        		$("#viewBook").hide(); isViewBook = false;
         		$("#modifyBook").show();
         		$("#modifyName").text(result.name);
         		$("#modifyAuthor").val(result.author);
@@ -163,9 +179,9 @@ function toModifyBook(name){
 }
 
 function toAddNewBook(){	
-	$("#main").hide();
+	$("#main").hide(); isMainPage = false;
 	$("#addBook").show();
-	$("#viewBook").hide();
+	$("#viewBook").hide(); isViewBook = false;
 	$("#modifyBook").hide();
 	$("#newName").val("");
 	$("#newAuthor").val("");
