@@ -32,13 +32,29 @@ $(document).ready(function(){
     $("#loading").hide();
 	pageIndex = 1;
 	showMainpage();
+	ref = setInterval(function(){
+	    refreshPage();
+	},5000);
 }); 
 
+var isMainPage = false;
+var isViewBook = false;
+function refreshPage(){
+	if(isMainPage==true){
+		showTable(pageIndex);
+	}
+	else if(isViewBook==true){
+		var name=$.trim($("#viewName").text());
+		viewBook(name);
+	}
+}
+
 function showMainpage(){
-	$("#main").show();
+	$("#main").show(); isMainPage = true;
 	$("#addBook").hide();
-	$("#viewBook").hide();
+	$("#viewBook").hide(); isViewBook = false;
 	$("#modifyBook").hide();
+    $("#loading").show();
 	showTable(pageIndex);
 }
 
@@ -56,7 +72,6 @@ function showTable(toPageIndex){
          "function": callFunction,
          "args": callArgs
      }
-     $("#loading").show();
      neb.api.call(from,dappAddress,value,nonce,gas_price,gas_limit,contract).then(function (resp) {
     	 $("#loading").hide();
     	 var result = resp.result     
@@ -70,12 +85,12 @@ function showTable(toPageIndex){
         		 totalCount = item.totalBookCount;
         		 str += "<tr>";
         		 str += "<td>" + ((pageIndex-1)*pageSize + i+1) + "</td>";
-        		 str += "<td> <a href=\"javascript:viewBook('" + item.name + "')\" >" + item.name + "</a></td>";
+        		 str += "<td> <a href=\"javascript:toViewBook('" + item.name + "')\" >" + item.name + "</a></td>";
         		 str += "<td>" + item.author + "</td>";
         		 str += "<td>" + item.dynasty + "</td>";
         		 str += "<td>" + item.voteCount + "</td>";
         		 str += "<td><div class='btn-group btn-group-sm'>";
-        		 str += "<button class='btn  btn-dark' onclick=\"viewBook('" + item.name + "')\"> 查看 </button>";
+        		 str += "<button class='btn  btn-dark' onclick=\"toViewBook('" + item.name + "')\"> 查看 </button>";
         		 str += "&nbsp;&nbsp;&nbsp;&nbsp;<button class='btn  btn-dark' onclick=\"toModifyBook('" + item.name + "')\"> 修改 </button>";
         		 str += "&nbsp;&nbsp;&nbsp;&nbsp;<button class='btn  btn-dark'  onclick=\"voteBook('" + item.name + "')\"> 投票 </button>";
         		 str += "</div></td>";
@@ -94,6 +109,15 @@ function showTable(toPageIndex){
 	
 }
 
+function toViewBook(name){
+  $("#main").hide(); isMainPage = false;
+  $("#addBook").hide();
+  $("#viewBook").show(); isViewBook = true;
+  $("#modifyBook").hide();
+  $("#loading").show();
+  viewBook(name);
+}
+
 function viewBook(name){
 	var from = Account.NewAccount().getAddressString();
     var value = "0";
@@ -106,7 +130,6 @@ function viewBook(name){
         "function": callFunction,
         "args": callArgs
     }
-    $("#loading").show();
     neb.api.call(from,dappAddress,value,nonce,gas_price,gas_limit,contract).then(function (resp) {
          $("#loading").hide();
       	 var result = resp.result     
@@ -117,10 +140,6 @@ function viewBook(name){
            }
            else{
         	   result = JSON.parse(JSON.parse(result));
-        	    $("#main").hide();
-        		$("#addBook").hide();
-        		$("#viewBook").show();
-        		$("#modifyBook").hide();
         		$("#viewName").text(result.name);
         		$("#viewAuthor").text(result.author);
         		$("#viewVoteCount").text(result.voteCount);
@@ -150,9 +169,9 @@ function toModifyBook(name){
            }
            else{
         	   result = JSON.parse(JSON.parse(result));
-        		$("#main").hide();
+        		$("#main").hide(); isMainPage = false;
         		$("#addBook").hide();
-        		$("#viewBook").hide();
+        		$("#viewBook").hide();  isViewBook = false;
         		$("#modifyBook").show();
         		$("#modifyName").text(result.name);
         		$("#modifyAuthor").val(result.author);
@@ -163,9 +182,9 @@ function toModifyBook(name){
 }
 
 function toAddNewBook(){	
-	$("#main").hide();
+	$("#main").hide(); isMainPage = false;
 	$("#addBook").show();
-	$("#viewBook").hide();
+	$("#viewBook").hide(); isViewBook = false;
 	$("#modifyBook").hide();
 	$("#newName").val("");
 	$("#newAuthor").val("");
@@ -175,7 +194,7 @@ function toAddNewBook(){
 
 function toRefreshBook4View(){
 	var name=$.trim($("#viewName").text());
-	viewBook( name);
+	toViewBook( name);
 }
 
 function toVoteBook4View(){
@@ -374,16 +393,16 @@ function funcIntervalQuery(bookName) {
             if(respObject.code === 0){  
                 $("#loading").hide();
                 alert("操作成功! 若页面未更新, 请稍后点击刷新按钮.");
+                clearInterval(intervalQuery); 
                 if(bookName==null){
                     showMainpage();
                 }
                 else{
-                	viewBook(bookName);
+                	toViewBook(bookName);
                 }
-                clearInterval(intervalQuery);  
             } 
             queryCount++;
-            if(queryCount>10){
+            if(queryCount>20){
             	$("#loading").hide();
             	clearInterval(intervalQuery);  
             }
@@ -419,7 +438,9 @@ function refreshTable(){
 
 		<br /> <br />
 		<h1 align="center">我最喜欢的中国古典书籍评选</h1>
-        <div align="center"  style="height:20px;">&nbsp;<img id="loading" src="js/loading.gif"/>&nbsp;</div>
+		<div align="center" style="height: 20px;">
+			&nbsp;<img id="loading" src="js/loading.gif" />&nbsp;
+		</div>
 		<div id="main">
 			<br /> <br />
 			<div class="btn-group btn-group-sm">
@@ -456,7 +477,7 @@ function refreshTable(){
 		<div id="viewBook">
 			<br /> <br />
 			<h5>书籍详情</h5>
-			<br /> 
+			<br />
 			<div class="form-horizontal" role="form">
 				<div class="form-group">
 					<label class="col-sm-1 control-label">书名:</label> <label
@@ -475,14 +496,16 @@ function refreshTable(){
 						id="viewVoteCount"></label>
 				</div>
 				<div class="form-group">
-					<label class="col-sm-1 control-label">简介:</label> <textarea cols="100" rows="3"
-						id="viewIntroduction" readonly="readonly" ></textarea>
+					<label class="col-sm-1 control-label">简介:</label>
+					<textarea cols="100" rows="3" id="viewIntroduction"
+						readonly="readonly"></textarea>
 				</div>
 				<div class="form-group" align="center">
 					<div class="btn-group btn-group-sm">
-					    <button onclick="toRefreshBook4View()" type="button"
+						<button onclick="toRefreshBook4View()" type="button"
 							class="btn  btn-dark">刷新</button>
-						&nbsp;&nbsp;&nbsp;&nbsp;<button onclick="toModifyBook4View()" type="button"
+						&nbsp;&nbsp;&nbsp;&nbsp;
+						<button onclick="toModifyBook4View()" type="button"
 							class="btn  btn-dark">修改</button>
 						&nbsp;&nbsp;&nbsp;&nbsp;
 						<button onclick="toVoteBook4View()" type="button"
@@ -497,7 +520,7 @@ function refreshTable(){
 		<div id="addBook">
 			<br /> <br />
 			<h5>添加书籍</h5>
-			<br /> 
+			<br />
 			<div class="form-horizontal" role="form">
 				<div class="form-group">
 					<label class="col-sm-1 control-label">书名:</label><input
@@ -505,46 +528,48 @@ function refreshTable(){
 				</div>
 				<div class="form-group">
 					<label class="col-sm-1 control-label">作者:</label><input
-						id="newAuthor" value="" placeholder="若作者不详, 填入不详" placeholder="" size="100" />
+						id="newAuthor" value="" placeholder="若作者不详, 填入不详" placeholder=""
+						size="100" />
 				</div>
 				<div class="form-group">
-					<label class="col-sm-1 control-label">朝代:</label>
-					<select id="newDynasty">
-					   <option value="夏">夏</option>
-					   <option value="商">商</option>
-					   <option value="西周">西周</option>
-					   <option value="春秋">春秋</option>
-					   <option value="战国">战国</option>
-					   <option value="秦">秦</option>
-					   <option value="西汉">西汉</option>
-					   <option value="东汉">东汉</option>
-					   <option value="三国">三国</option>
-					   <option value="西晋">西晋</option>
-					   <option value="东晋">东晋</option>
-					   <option value="十六国">十六国</option>
-					   <option value="南朝">南朝</option>
-					   <option value="北朝">北朝</option>
-					   <option value="隋">隋</option>
-					   <option value="唐">唐</option>
-					   <option value="五代十国">五代十国</option>
-					   <option value="北宋">北宋</option>
-					   <option value="南宋">南宋</option>
-					   <option value="辽">辽</option>
-					   <option value="西夏">西夏</option>
-					   <option value="金">金</option>
-					   <option value="元">元</option>
-					   <option value="明">明</option>
-					   <option value="清">清</option>
-					   <option value="其他">其他</option>
-					   <option value="不详">不详</option>
+					<label class="col-sm-1 control-label">朝代:</label> <select
+						id="newDynasty">
+						<option value="夏">夏</option>
+						<option value="商">商</option>
+						<option value="西周">西周</option>
+						<option value="春秋">春秋</option>
+						<option value="战国">战国</option>
+						<option value="秦">秦</option>
+						<option value="西汉">西汉</option>
+						<option value="东汉">东汉</option>
+						<option value="三国">三国</option>
+						<option value="西晋">西晋</option>
+						<option value="东晋">东晋</option>
+						<option value="十六国">十六国</option>
+						<option value="南朝">南朝</option>
+						<option value="北朝">北朝</option>
+						<option value="隋">隋</option>
+						<option value="唐">唐</option>
+						<option value="五代十国">五代十国</option>
+						<option value="北宋">北宋</option>
+						<option value="南宋">南宋</option>
+						<option value="辽">辽</option>
+						<option value="西夏">西夏</option>
+						<option value="金">金</option>
+						<option value="元">元</option>
+						<option value="明">明</option>
+						<option value="清">清</option>
+						<option value="其他">其他</option>
+						<option value="不详">不详</option>
 					</select>
 				</div>
 				<div class="form-group">
 					<label class="col-sm-1 control-label">简介:</label>
-					<textarea cols="100" rows="3" placeholder="150字以内" id="newIntroduction" ></textarea>
+					<textarea cols="100" rows="3" placeholder="150字以内"
+						id="newIntroduction"></textarea>
 				</div>
 				<div class="form-group" align="center">
-					<div class="btn-group btn-group-sm" >
+					<div class="btn-group btn-group-sm">
 						<button onclick="addNewBook()" type="button" class="btn  btn-dark">确定</button>
 						&nbsp;&nbsp;&nbsp;&nbsp;
 						<button onclick="showMainpage()" class="btn  btn-dark">返回</button>
@@ -556,53 +581,53 @@ function refreshTable(){
 		<div id="modifyBook">
 			<br /> <br />
 			<h5>修改书籍</h5>
-			<br /> 
+			<br />
 			<form class="form-horizontal" role="form">
 				<div class="form-group">
-					<label class="col-sm-1 control-label" >书名:</label>
- 						<label id="modifyName" ></label>
- 				</div>
+					<label class="col-sm-1 control-label">书名:</label> <label
+						id="modifyName"></label>
+				</div>
 				<div class="form-group">
-					<label class="col-sm-1 control-label">作者:</label>
-						<input id="modifyAuthor" value="" 
-							size="100" />
+					<label class="col-sm-1 control-label">作者:</label> <input
+						id="modifyAuthor" value="" size="100" />
 				</div>
 
 				<div class="form-group">
-					<label class="col-sm-1 control-label">朝代:</label>
-				     <select id="modifyDynasty">
-					   <option value="夏">夏</option>
-					   <option value="商">商</option>
-					   <option value="西周">西周</option>
-					   <option value="春秋">春秋</option>
-					   <option value="战国">战国</option>
-					   <option value="秦">秦</option>
-					   <option value="西汉">西汉</option>
-					   <option value="东汉">东汉</option>
-					   <option value="三国">三国</option>
-					   <option value="西晋">西晋</option>
-					   <option value="东晋">东晋</option>
-					   <option value="十六国">十六国</option>
-					   <option value="南朝">南朝</option>
-					   <option value="北朝">北朝</option>
-					   <option value="隋">隋</option>
-					   <option value="唐">唐</option>
-					   <option value="五代十国">五代十国</option>
-					   <option value="北宋">北宋</option>
-					   <option value="南宋">南宋</option>
-					   <option value="辽">辽</option>
-					   <option value="西夏">西夏</option>
-					   <option value="金">金</option>
-					   <option value="元">元</option>
-					   <option value="明">明</option>
-					   <option value="清">清</option>
-					   <option value="其他">其他</option>
-					   <option value="不详">不详</option>
+					<label class="col-sm-1 control-label">朝代:</label> <select
+						id="modifyDynasty">
+						<option value="夏">夏</option>
+						<option value="商">商</option>
+						<option value="西周">西周</option>
+						<option value="春秋">春秋</option>
+						<option value="战国">战国</option>
+						<option value="秦">秦</option>
+						<option value="西汉">西汉</option>
+						<option value="东汉">东汉</option>
+						<option value="三国">三国</option>
+						<option value="西晋">西晋</option>
+						<option value="东晋">东晋</option>
+						<option value="十六国">十六国</option>
+						<option value="南朝">南朝</option>
+						<option value="北朝">北朝</option>
+						<option value="隋">隋</option>
+						<option value="唐">唐</option>
+						<option value="五代十国">五代十国</option>
+						<option value="北宋">北宋</option>
+						<option value="南宋">南宋</option>
+						<option value="辽">辽</option>
+						<option value="西夏">西夏</option>
+						<option value="金">金</option>
+						<option value="元">元</option>
+						<option value="明">明</option>
+						<option value="清">清</option>
+						<option value="其他">其他</option>
+						<option value="不详">不详</option>
 					</select>
 				</div>
 				<div class="form-group">
 					<label class="col-sm-1 control-label">简介:</label>
-					<textarea cols="100" rows="3" placeholder="150字以内" id="modifyIntroduction" ></textarea>
+					<textarea cols="100" rows="3" placeholder="150字以内"
+						id="modifyIntroduction"></textarea>
 				</div>
 				<div class="form-group" align="center">
 					<div class="btn-group btn-group-sm">
